@@ -80,6 +80,11 @@
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 35% { transform: translateY(-10px); } 60% { transform: translateY(0) scale(1.04, .96); } 80% { transform: translateY(-3px); } }
         .paths { display: flex; gap: 18px; flex-wrap: wrap; padding: 2px 0 6px; }
         .paths .ball { width: 100px; height: 100px; font-size: 11px; }
+        .paths { align-items: center; }
+        .hint { display: flex; align-items: center; gap: 6px; max-width: 190px; cursor: pointer; color: var(--ink); font-size: 12.5px; font-weight: 650; line-height: 1.3; animation: nudge 1.3s ease-in-out infinite; }
+        .hint svg { flex-shrink: 0; width: 46px; height: 28px; }
+        @keyframes nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-9px); } }
+        @media (prefers-reduced-motion: reduce) { .hint { animation: none; } }
 
         #input-area { position: sticky; bottom: 0; z-index: 2; flex-shrink: 0; padding: 14px 32px 12px; background: rgba(255, 255, 255, .96); border-top: 1px solid var(--line); backdrop-filter: blur(8px); }
         #starter-options > p { font-size: 12px; font-weight: 650; color: var(--muted); margin-bottom: 8px; }
@@ -204,6 +209,7 @@
     <script>
         const $ = (id) => document.getElementById(id);
         const SEAMS = '<svg viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="rgba(20,10,5,.55)" stroke-width="1.6"><path d="M0 50h100M50 0v100"/><path d="M15 12c14 14 14 62 0 76M85 12c-14 14-14 62 0 76"/></g></svg>';
+        const ARROW = '<svg viewBox="0 0 46 28" aria-hidden="true"><g fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M43 20C33 6 18 5 5 13"/><path d="M12 6L5 13l9 3"/></g></svg>';
         const state = { mode: "live", night: "", sessionId: null, busy: false, cards: [], parts: {} };
 
         const ORB_VERTEX = "attribute vec2 position; varying vec2 vUv; void main() { vUv = (position + 1.0) * 0.5; gl_Position = vec4(position, 0.0, 1.0); }";
@@ -611,6 +617,12 @@
                     option.action(option.label);
                 };
                 row.append(button);
+                if (option.hint) {
+                    const hint = el("div", { class: "hint", role: "presentation" }, el("span", {}, option.hint));
+                    hint.insertAdjacentHTML("afterbegin", ARROW);
+                    hint.onclick = () => button.click();
+                    row.append(hint);
+                }
             }
             $("messages").append(row);
             row.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -659,7 +671,8 @@
                 status.className = "status error";
             }
             setBusy(false);
-            choices(found ? [{ label: "Give me the full odds", action: fullOdds }, { label: "Start over", action: startOver }] : [{ label: "Start over", action: startOver }]);
+            const fullOddsChoice = { label: "Give me the full odds", action: fullOdds, hint: "Click here to see all the agents in action" };
+            choices(found ? [fullOddsChoice, { label: "Start over", action: startOver }] : [{ label: "Start over", action: startOver }]);
         }
 
         function fullOdds() {
