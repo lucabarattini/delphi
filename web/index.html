@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Delphi</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23c8622d'/%3E%3Cpath d='M1 16h30M16 1v30M5 5c6 6 6 16 0 22M27 5c-6 6-6 16 0 22' stroke='%2322150e' stroke-width='1.6' fill='none'/%3E%3C/svg%3E" />
+    <style>
+        :root {
+            --ball: #c8622d;
+            --ball-dark: #8c3a12;
+            --seam: #22150e;
+            --cream: #fff7ef;
+            --sand: #fbebdd;
+            --line: #efd9c5;
+            --text: #22150e;
+            --muted: #7b6a5d;
+            --ink: #111111;
+            --cards-width: min(30vw, 30rem);
+            --panel-width: min(var(--context-width), 40vw);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; background: var(--cream); color: var(--text); }
+        button, input, select { font: inherit; color: inherit; }
+        button { cursor: pointer; }
+        button:disabled { opacity: .5; cursor: wait; }
+        button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--ball); outline-offset: 2px; }
+        [hidden] { display: none !important; }
+        a { color: var(--ball-dark); }
+        code { font: 0.92em ui-monospace, monospace; background: var(--sand); padding: 1px 5px; border-radius: 4px; }
+
+        body:not(.working) { margin-right: 0; }
+        body.games:not(.working) { margin-right: var(--cards-width); }
+        body.working { margin-right: calc(var(--panel-width) + var(--cards-width)); }
+        body:not(.working) #context-panel { display: none; }
+        body:not(.games) #cards-pane { display: none; }
+        body.working #context-panel { right: var(--cards-width); width: var(--panel-width); }
+        body.games #container { max-width: none; }
+
+        #container { max-width: 1120px; margin: auto; min-height: 100dvh; display: flex; flex-direction: column; background: #fff; box-shadow: 0 0 0 1px rgba(34, 21, 14, .06); }
+        header { position: relative; min-height: 240px; margin: 16px 16px 0; padding: 32px; display: flex; align-items: flex-end; overflow: hidden; color: #fff; background: var(--seam); border-radius: 18px; }
+        .hero-image { position: absolute; top: 0; right: 0; height: 100%; width: min(52%, 520px); object-fit: cover; object-position: 50% 51%; }
+        header::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--seam) 0%, var(--seam) 46%, rgba(34, 21, 14, .25) 74%, rgba(34, 21, 14, .5) 100%); }
+        .brand { position: relative; z-index: 1; }
+        .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #f6b98a; margin-bottom: 8px; }
+        h1 { font-size: 44px; line-height: 1; font-weight: 750; }
+        header p { font-size: 15px; margin-top: 10px; }
+        #clear-btn { position: relative; z-index: 1; margin-left: auto; flex-shrink: 0; background: rgba(255, 255, 255, .14); color: #fff; border: 1px solid rgba(255, 255, 255, .5); border-radius: 8px; padding: 9px 14px; backdrop-filter: blur(16px); }
+
+        #introduction { padding: 22px 32px; font-size: 13.5px; line-height: 1.6; color: #3d2c22; border-bottom: 1px solid var(--line); }
+        #introduction p + p { margin-top: 6px; }
+
+        #messages { min-height: 200px; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+        #messages > * { flex-shrink: 0; }
+        #messages:empty::before { content: "Choose a starting question below."; color: var(--muted); font-size: 20px; font-weight: 600; margin: auto; }
+        .msg { line-height: 1.58; overflow-wrap: anywhere; font-size: 14.5px; }
+        .msg.user { align-self: flex-end; max-width: 85%; background: var(--sand); padding: 11px 14px; border-radius: 10px; }
+        .role { font-size: 10px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; font-weight: 700; letter-spacing: .04em; }
+        .status { color: var(--muted); font-size: 13px; }
+        .status.error { color: #b42318; }
+        .report p { margin: 6px 0; }
+        .report p.pick { background: var(--sand); border-left: 3px solid var(--ink); border-radius: 0 8px 8px 0; padding: 8px 12px; }
+        .fills { margin: 8px 0 6px 18px; display: grid; gap: 4px; }
+        .rows { margin-top: 14px; border-bottom: 1px solid var(--line); }
+        .rows-head { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 8px 0 4px; }
+        .game-row { display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+        .matchup { display: flex; align-items: center; gap: 5px; }
+        .matchup img { width: 24px; height: 24px; }
+        .matchup span { color: var(--muted); }
+        .meters { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 22px; font-size: 12.5px; }
+        .meter-line { display: grid; grid-template-columns: 34px 70px auto; align-items: center; gap: 6px; }
+        .meter { height: 8px; border-radius: 4px; background: #e7e5e4; overflow: hidden; }
+        .meter span { display: block; height: 100%; background: var(--ink); }
+
+        .ball { position: relative; flex-shrink: 0; width: 112px; height: 112px; border-radius: 50%; border: none; overflow: hidden; color: #fff; font-size: 11.5px; font-weight: 750; line-height: 1.25; background: radial-gradient(circle at 50% 45%, #3b2418 0%, #140b07 72%); box-shadow: 0 12px 26px -12px rgba(200, 98, 45, .85), 0 0 0 1px rgba(34, 21, 14, .35); }
+        .ball canvas, .ball svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .ball span { position: relative; display: block; padding: 0 15px; text-shadow: 0 1px 4px #000, 0 0 12px rgba(0, 0, 0, .85); }
+        .ball span span { display: inline; padding: 0; }
+        .ball:hover:not(:disabled) { animation: bounce .7s ease-in-out; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 35% { transform: translateY(-10px); } 60% { transform: translateY(0) scale(1.04, .96); } 80% { transform: translateY(-3px); } }
+        .paths { display: flex; gap: 18px; flex-wrap: wrap; padding: 2px 0 6px; }
+        .paths .ball { width: 100px; height: 100px; font-size: 11px; }
+
+        #input-area { position: sticky; bottom: 0; z-index: 2; flex-shrink: 0; padding: 14px 32px 12px; background: rgba(255, 255, 255, .96); border-top: 1px solid var(--line); backdrop-filter: blur(8px); }
+        #starter-options > p { font-size: 12px; font-weight: 650; color: var(--muted); margin-bottom: 8px; }
+        .balls { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; }
+        .ball-slot { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .ball-slot label { font-size: 12px; color: var(--muted); }
+        .ball-slot input { border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; margin-left: 4px; }
+        #chat-form { display: flex; gap: 8px; }
+        #user-input { min-width: 0; flex: 1; border: 1px solid #dcc3ad; border-radius: 8px; padding: 9px 12px; font-size: 13.5px; }
+        #send-btn { border: none; border-radius: 8px; background: var(--ink); color: #fff; padding: 9px 16px; font-weight: 650; font-size: 13.5px; }
+        footer { font-size: 10px; color: var(--muted); margin-top: 10px; text-align: center; }
+
+        #cards-pane { position: fixed; top: 0; right: 0; bottom: 0; width: var(--cards-width); overflow-y: auto; padding: 18px 16px 32px; background: var(--cream); border-left: 1px solid var(--line); }
+        #cards-pane > h2 { font-size: .75rem; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+        #cards { display: grid; gap: 14px; }
+        .card { border: 1px solid var(--line); border-radius: 12px; padding: 14px 15px; background: #fff; font-size: 13px; }
+        .card-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+        .team { display: flex; align-items: center; gap: 5px; }
+        .team img { width: 30px; height: 30px; }
+        .team b { font-size: 17px; }
+        .team small, .at { color: var(--muted); }
+        .tip { width: 100%; color: var(--muted); font-size: 12px; }
+        .tag { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; font-size: 11px; margin-left: 6px; }
+        .block { margin-top: 11px; }
+        .block h3 { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+        .question { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+        .question:last-child { border-bottom: 0; }
+        .question q { font-style: italic; }
+        .crowd { background: var(--sand); border-radius: 8px; padding: 9px 11px; }
+        .crowd b { font-size: 17px; }
+        .strip { display: grid; grid-template-columns: 40px 1fr; align-items: start; gap: 6px; margin-top: 4px; }
+        .chips { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+        .chip { width: 18px; height: 18px; border-radius: 4px; font-size: 10px; line-height: 18px; text-align: center; font-weight: 750; }
+        .chip.right { background: var(--ink); color: #fff; }
+        .chip.wrong { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+        .chip.unknown { background: #fff; color: #a8a29e; box-shadow: inset 0 0 0 1.5px #e7e5e4; }
+        .called { margin-left: 4px; color: var(--text); white-space: nowrap; font-weight: 600; }
+        .reveal { margin-top: 10px; padding: 8px 11px; border-radius: 8px; border: 1px dashed var(--ink); background: #fff; }
+        .sim { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 11px; color: var(--muted); }
+        .sim select, .sim input { border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: #fff; color: var(--text); }
+        .sim input { width: 90px; }
+        .sim button { border: 1px solid var(--ink); background: #fff; color: var(--ink); border-radius: 8px; padding: 5px 12px; font-weight: 650; }
+        .book { margin-top: 9px; }
+        .book p { margin-bottom: 6px; }
+        .book svg { width: 100%; max-width: 560px; height: auto; display: block; }
+        .error { color: #b42318; }
+        .note { color: var(--muted); font-size: 12px; }
+
+        @media (max-width: 800px) {
+            body.working, body.games:not(.working) { margin-right: 0; }
+            body.working #context-panel, #cards-pane { position: static; width: 100%; }
+            header { min-height: 210px; margin: 8px 8px 0; padding: 22px 16px; border-radius: 14px; }
+            .hero-image { width: 100%; }
+            header::after { background: linear-gradient(180deg, rgba(34, 21, 14, .2) 0%, rgba(34, 21, 14, .7) 55%, var(--seam) 100%); }
+            h1 { font-size: 34px; }
+            header p { font-size: 13px; }
+            #clear-btn { font-size: 12px; padding: 8px; align-self: flex-start; }
+            #introduction { padding: 18px 20px; }
+            #messages { padding: 24px 20px; }
+            #messages:empty::before { font-size: 17px; }
+            #input-area { padding: 12px 16px 10px; }
+            .balls { gap: 20px; }
+            .ball { width: 104px; height: 104px; font-size: 11px; }
+            .ball span { padding: 0 13px; }
+            .msg.user { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <main id="container">
+        <header>
+            <img class="hero-image" src="/assets/banner.jpg" alt="A Renaissance painting of two hands lowering a jeweled gold crown onto a head" />
+            <div class="brand">
+                <div class="eyebrow">NBA games on Kalshi</div>
+                <h1>Delphi</h1>
+                <p>The crowd is the oracle. Shall we trust the crowd?</p>
+            </div>
+            <button id="clear-btn" type="button">New chat</button>
+        </header>
+
+        <section id="introduction" aria-label="About Delphi">
+            <p>In ancient Greece, Delphi was home to the Pythia, the oracle that everyone would travel to see.</p>
+            <p>In this little experiment, I want to make the controversial claim that Kalshi is today's new oracle.</p>
+            <p>This is because, if you think about it, people who bet on Kalshi have access to inputs that no deep learning model could have.</p>
+            <p>
+                So I want to see whether Kalshi was right, for tonight's games or for any night of this season. And, if I think it might be right about
+                tonight's game, I want to see where my bet would land if I put X dollars on it.
+            </p>
+            <p>The agent uses four tools, all defined in <code>scripts/tools.py</code>.</p>
+        </section>
+
+        <section id="messages" role="log" aria-label="Conversation" aria-live="polite"></section>
+
+        <div id="input-area">
+            <div id="starter-options">
+                <p>Choose where to begin</p>
+                <div class="balls">
+                    <div class="ball-slot">
+                        <button class="ball" type="button" id="tonight"><canvas aria-hidden="true"></canvas><span>Which games are being played tonight?</span></button>
+                        <label>Live prices from Kalshi</label>
+                    </div>
+                    <div class="ball-slot">
+                        <button class="ball" type="button" id="past"><canvas aria-hidden="true"></canvas><span>Which games were played on <span id="night-label">a past night</span>?</span></button>
+                        <label>Night <input type="date" id="night" aria-label="Night to replay" /></label>
+                    </div>
+                </div>
+            </div>
+            <form id="chat-form" hidden>
+                <input type="text" id="user-input" aria-label="Your question" placeholder="Or ask your own question" autocomplete="off" required />
+                <button id="send-btn" type="submit">Ask</button>
+            </form>
+            <footer>Kalshi prices and NBA results. Simulated orders only, Delphi never places trades.</footer>
+        </div>
+    </main>
+
+    <aside id="cards-pane" aria-label="Games">
+        <h2>Games</h2>
+        <div id="cards"></div>
+    </aside>
+
+    <script src="/context-panel.js"></script>
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const SEAMS = '<svg viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="rgba(20,10,5,.55)" stroke-width="1.6"><path d="M0 50h100M50 0v100"/><path d="M15 12c14 14 14 62 0 76M85 12c-14 14-14 62 0 76"/></g></svg>';
+        const state = { mode: "live", night: "", sessionId: null, busy: false, cards: [], parts: {} };
+
+        const ORB_VERTEX = "attribute vec2 position; varying vec2 vUv; void main() { vUv = (position + 1.0) * 0.5; gl_Position = vec4(position, 0.0, 1.0); }";
+        const ORB_FRAGMENT = `
+            precision highp float;
+            uniform float iTime;
+            uniform vec2 iResolution;
+            uniform float rot;
+            varying vec2 vUv;
+            const float noiseScale = 0.65;
+            const float innerRadius = 0.1;
+            const vec3 color0 = vec3(0.86, 0.42, 0.16);
+            const vec3 color1 = vec3(0.47, 0.17, 0.05);
+            const vec3 color2 = vec3(1.0, 0.70, 0.38);
+            const vec3 color3 = vec3(0.0, 0.0, 0.0);
+
+            vec3 hash33(vec3 p3) {
+                p3 = fract(p3 * vec3(0.1031, 0.11369, 0.13787));
+                p3 += dot(p3, p3.yxz + 19.19);
+                return -1.0 + 2.0 * fract(vec3(p3.x + p3.y, p3.x + p3.z, p3.y + p3.z) * p3.zyx);
+            }
+
+            float snoise3(vec3 p) {
+                const float K1 = 0.333333333;
+                const float K2 = 0.166666667;
+                vec3 i = floor(p + (p.x + p.y + p.z) * K1);
+                vec3 d0 = p - (i - (i.x + i.y + i.z) * K2);
+                vec3 e = step(vec3(0.0), d0 - d0.yzx);
+                vec3 i1 = e * (1.0 - e.zxy);
+                vec3 i2 = 1.0 - e.zxy * (1.0 - e);
+                vec3 d1 = d0 - (i1 - K2);
+                vec3 d2 = d0 - (i2 - K1);
+                vec3 d3 = d0 - 0.5;
+                vec4 h = max(0.6 - vec4(dot(d0, d0), dot(d1, d1), dot(d2, d2), dot(d3, d3)), 0.0);
+                vec4 n = h * h * h * h * vec4(dot(d0, hash33(i)), dot(d1, hash33(i + i1)), dot(d2, hash33(i + i2)), dot(d3, hash33(i + 1.0)));
+                return dot(vec4(31.316), n);
+            }
+
+            vec4 extractAlpha(vec3 c) {
+                float a = max(max(c.r, c.g), c.b);
+                return vec4(c.rgb / (a + 1e-5), a);
+            }
+
+            float light1(float intensity, float attenuation, float dist) { return intensity / (1.0 + dist * attenuation); }
+            float light2(float intensity, float attenuation, float dist) { return intensity / (1.0 + dist * dist * attenuation); }
+
+            vec4 draw(vec2 uv) {
+                float len = length(uv);
+                float invLen = len > 0.0 ? 1.0 / len : 0.0;
+                float pulse = sin(iTime * 1.5) * 0.02;
+                float n0 = snoise3(vec3(uv * noiseScale, iTime * 0.5)) * 0.5 + 0.5;
+                float r0 = mix(mix(innerRadius + pulse, 1.0, 0.4), mix(innerRadius + pulse, 1.0, 0.6), n0);
+                float d0 = distance(uv, (r0 * invLen) * uv);
+                float v0 = light1(1.0, 10.0, d0);
+                v0 *= smoothstep(r0 * 1.05, r0, len);
+                float cl = cos(atan(uv.y, uv.x) + iTime * 2.0) * 0.5 + 0.5;
+                float a = iTime * -1.0;
+                vec2 pos = vec2(cos(a), sin(a)) * r0;
+                float d = distance(uv, pos);
+                float v1 = light2(1.5, 5.0, d);
+                v1 *= light1(1.0, 50.0, d0);
+                float v2 = smoothstep(1.0, mix(innerRadius, 1.0, n0 * 0.5), len);
+                float v3 = smoothstep(innerRadius, mix(innerRadius, 1.0, 0.5), len);
+                vec3 col = mix(color1, color2, cl);
+                col = mix(col, color0, n0);
+                col = mix(color3, col, v0);
+                col = (col + v1) * v2 * v3;
+                return extractAlpha(clamp(col, 0.0, 1.0));
+            }
+
+            void main() {
+                vec2 center = iResolution * 0.5;
+                float size = min(iResolution.x, iResolution.y);
+                vec2 uv = (vUv * iResolution - center) / size * 2.0;
+                float s = sin(rot);
+                float c = cos(rot);
+                uv = vec2(c * uv.x - s * uv.y, s * uv.x + c * uv.y);
+                vec4 col = draw(uv);
+                gl_FragColor = vec4(col.rgb * col.a, col.a);
+            }`;
+        const orbs = new Set();
+        const stillOrbs = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const orbWatcher = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+                const orb = entry.target.orb;
+                if (!orb) continue;
+                orb.visible = entry.isIntersecting;
+                if (orb.visible && stillOrbs) drawOrb(orb, 2);
+            }
+        });
+
+        function makeOrb(canvas) {
+            canvas.insertAdjacentHTML("afterend", SEAMS);
+            const gl = canvas.getContext("webgl", { premultipliedAlpha: true, antialias: true });
+            if (!gl) return;
+            const program = gl.createProgram();
+            for (const [type, source] of [[gl.VERTEX_SHADER, ORB_VERTEX], [gl.FRAGMENT_SHADER, ORB_FRAGMENT]]) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                gl.attachShader(program, shader);
+            }
+            gl.linkProgram(program);
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return;
+            gl.useProgram(program);
+            gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+            const position = gl.getAttribLocation(program, "position");
+            gl.enableVertexAttribArray(position);
+            gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+            const orb = { canvas, gl, visible: false, offset: Math.random() * 20, time: gl.getUniformLocation(program, "iTime"), size: gl.getUniformLocation(program, "iResolution"), rot: gl.getUniformLocation(program, "rot") };
+            canvas.orb = orb;
+            orbs.add(orb);
+            orbWatcher.observe(canvas);
+        }
+
+        function drawOrb(orb, seconds) {
+            const { canvas, gl } = orb;
+            const ratio = window.devicePixelRatio || 1;
+            const width = Math.round(canvas.clientWidth * ratio);
+            const height = Math.round(canvas.clientHeight * ratio);
+            if (!width || !height) return;
+            if (canvas.width !== width || canvas.height !== height) {
+                canvas.width = width;
+                canvas.height = height;
+            }
+            gl.viewport(0, 0, width, height);
+            gl.uniform1f(orb.time, seconds + orb.offset);
+            gl.uniform2f(orb.size, width, height);
+            gl.uniform1f(orb.rot, (seconds + orb.offset) * 0.3);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+
+        function releaseOrbs(root) {
+            root.querySelectorAll("canvas").forEach((canvas) => {
+                if (!canvas.orb) return;
+                orbWatcher.unobserve(canvas);
+                orbs.delete(canvas.orb);
+                canvas.orb.gl.getExtension("WEBGL_lose_context")?.loseContext();
+                canvas.orb = null;
+            });
+        }
+
+        function animateOrbs(now) {
+            for (const orb of orbs) if (orb.visible) drawOrb(orb, now / 1000);
+            requestAnimationFrame(animateOrbs);
+        }
+
+        function el(tag, attrs = {}, ...children) {
+            const node = document.createElement(tag);
+            for (const [key, value] of Object.entries(attrs)) {
+                if (key === "class") node.className = value;
+                else if (key === "style") node.style.cssText = value;
+                else node.setAttribute(key, value);
+            }
+            node.append(...children.filter((child) => child !== null && child !== undefined));
+            return node;
+        }
+
+        function logo(src, code) {
+            const img = el("img", { src, alt: code + " logo" });
+            img.onerror = () => img.remove();
+            return img;
+        }
+
+        function money(value) {
+            return value === null || value === undefined ? "n/a" : "$" + Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function cents(value) {
+            return value === null || value === undefined ? "n/a" : Math.round(value * 100) + "¢";
+        }
+
+        function percent(value) {
+            return value === null || value === undefined ? "n/a" : Math.round(Number(value) * 100) + "%";
+        }
+
+        function tipTime(tip) {
+            const [h, m] = tip.split(" ")[1].split(":").map(Number);
+            return ((h + 11) % 12) + 1 + ":" + String(m).padStart(2, "0") + (h < 12 ? " AM" : " PM") + " ET";
+        }
+
+        function nightLabel(night) {
+            return new Date(night + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        }
+
+        function nightName() {
+            return state.mode === "live" ? "tonight" : "on " + nightLabel(state.night);
+        }
+
+        function inline(text) {
+            return text
+                .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+                .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+                .replace(/`([^`]+)`/g, "<code>$1</code>");
+        }
+
+        function markdown(source) {
+            const escaped = source.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return escaped
+                .split(/\n+/)
+                .map((line) => line.replace(/^#{1,4}\s+|^\s*(?:[-*]|\d+\.)\s+/, "").replace(/\*\*(Delphi's pick[^:*]*:)\*\*/, "$1").trim())
+                .filter(Boolean)
+                .map((line) => {
+                    const pick = line.match(/^(Delphi's pick[^:]*:)(.*)$/);
+                    return pick ? '<p class="pick"><strong>' + pick[1] + "</strong>" + inline(pick[2]) + "</p>" : "<p>" + inline(line) + "</p>";
+                })
+                .join("");
+        }
+
+        function calledRight(card, code) {
+            const called = card.records?.[code]?.kalshi_called_right;
+            if (!called) return null;
+            const [right, total] = called.split(" of ").map(Number);
+            return { right, total };
+        }
+
+        function teamBlock(card, code) {
+            const record = card.records?.[code];
+            return el("div", { class: "team" }, logo(card.logos[code], code), el("b", {}, code), record ? el("small", {}, record.season) : null);
+        }
+
+        function questionLine(card, code) {
+            const market = card.markets[code] || {};
+            return el("div", { class: "question" }, el("q", {}, market.question || code + " wins"), el("span", {}, "YES costs " + cents(market.ask)));
+        }
+
+        function strip(card, code) {
+            const record = card.records?.[code];
+            const score = calledRight(card, code);
+            const chips = (record?.this_season || []).map((game) => {
+                const kind = game.kalshi_right === null ? "unknown" : game.kalshi_right ? "right" : "wrong";
+                const call = game.kalshi_favorite ? " Kalshi favored " + game.kalshi_favorite + (game.kalshi_right ? ", right." : ", wrong.") : " No Kalshi price.";
+                return el("span", { class: "chip " + kind, title: game.date + (game.home ? " vs " : " at ") + game.opponent + ": " + game.score + "." + call }, game.won ? "W" : "L");
+            });
+            const summary = score ? el("span", { class: "called" }, score.right + " of " + score.total + " right") : null;
+            return el("div", { class: "strip" }, el("b", {}, code), el("div", { class: "chips" }, ...(chips.length ? chips : [el("span", { class: "note" }, "no games yet")]), summary));
+        }
+
+        function renderCard(card) {
+            const crowd = card.crowd || {};
+            const favorite = crowd.favorite;
+            const timing = card.mode === "replay" ? "price 3 min before tip-off" : card.provisional ? "live, provisional" : "final minutes";
+            const reveal = el("div", { class: "reveal", hidden: "" });
+            const book = el("div", { class: "book" });
+            state.parts[card.event_ticker] = { reveal, book };
+            const select = el("select", { "aria-label": "Team to back" }, ...[card.away, card.home].map((code) => el("option", { value: card.markets[code]?.ticker || "" }, code)));
+            if (favorite) select.value = card.markets[favorite]?.ticker || select.value;
+            const amount = el("input", { type: "number", min: "1", step: "1", value: "100", "aria-label": "Dollars" });
+            const button = el("button", { type: "submit" }, "Simulate");
+            const form = el("form", { class: "sim" }, "Back", select, "with $", amount, button);
+            if (card.mode === "replay") {
+                [select, amount, button].forEach((input) => (input.disabled = true));
+                form.append(el("span", { class: "note" }, "Kalshi keeps no past order books, so orders work on tonight's games only."));
+            }
+            form.onsubmit = async (event) => {
+                event.preventDefault();
+                button.disabled = true;
+                book.replaceChildren(el("p", { class: "note" }, "Walking the order book..."));
+                renderBook(book, await simulate(select.value, Number(amount.value)), select.selectedOptions[0].textContent);
+                button.disabled = false;
+            };
+            const boxes = card.records ? el("div", { class: "block" }, el("h3", {}, "Was Kalshi right about these teams?"), strip(card, card.away), strip(card, card.home)) : null;
+            return el(
+                "article",
+                { class: "card" },
+                el("div", { class: "card-head" }, teamBlock(card, card.away), el("span", { class: "at" }, "at"), teamBlock(card, card.home), el("div", { class: "tip" }, tipTime(card.tip), el("span", { class: "tag" }, timing))),
+                el("div", { class: "block" }, el("h3", {}, "The question on Kalshi"), questionLine(card, card.away), questionLine(card, card.home)),
+                el("div", { class: "block crowd" }, el("h3", {}, "The crowd says"), favorite ? el("div", {}, el("b", {}, favorite + " wins"), ", " + percent(crowd.implied) + " chance by the price") : el("div", {}, "No price yet.")),
+                reveal,
+                boxes,
+                form,
+                book
+            );
+        }
+
+        function showCards(cards) {
+            state.cards = cards;
+            state.parts = {};
+            $("cards").replaceChildren(...cards.map(renderCard));
+        }
+
+        function meter(card, code) {
+            const score = calledRight(card, code);
+            if (!score) return null;
+            const width = score.total ? (score.right / score.total) * 100 : 0;
+            return el(
+                "div",
+                { class: "meter-line", title: "Kalshi's favorite won " + score.right + " of " + score.total + " " + code + " games this season" },
+                el("b", {}, code),
+                el("div", { class: "meter" }, el("span", { style: "width:" + width + "%" })),
+                el("span", {}, score.right + " of " + score.total + " right")
+            );
+        }
+
+        function gameRows(cards) {
+            const rows = cards.map((card) => {
+                const crowd = card.crowd || {};
+                return el(
+                    "div",
+                    { class: "game-row" },
+                    el("div", { class: "matchup" }, logo(card.logos[card.away], card.away), el("b", {}, card.away), el("span", {}, "at"), logo(card.logos[card.home], card.home), el("b", {}, card.home)),
+                    el("div", {}, crowd.favorite ? el("span", {}, el("b", {}, crowd.favorite + " wins"), " (" + percent(crowd.implied) + ")") : "No price"),
+                    el("div", { class: "meters" }, meter(card, card.away), meter(card, card.home))
+                );
+            });
+            return el("div", { class: "rows" }, el("div", { class: "rows-head" }, "The crowd says, and how often Kalshi was right about each team this season"), ...rows);
+        }
+
+        async function simulate(ticker, dollars) {
+            try {
+                const response = await fetch("/simulate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ticker, side: "yes", dollars }) });
+                return await response.json();
+            } catch (error) {
+                return { error: error.message };
+            }
+        }
+
+        function renderBook(container, fill, team) {
+            if (fill.error) {
+                container.replaceChildren(el("p", { class: "error" }, fill.error));
+                return;
+            }
+            const summary =
+                money(fill.spent) + " buys " + fill.contracts.toLocaleString() + " contracts at an average " + money(fill.avg_price) + " (worst " + money(fill.worst_price) + "), plus a " + money(fill.fee) +
+                " fee. If " + team + " wins you get " + money(fill.payout_if_right) + ", a profit of " + money(fill.profit_if_right) + ". If not, you lose " + money(fill.loss_if_wrong) + "." + (fill.fully_filled ? "" : " Only part of the amount found sellers.");
+            container.replaceChildren(el("p", {}, summary), bookSvg(fill), el("p", { class: "note" }, "Order book at " + fill.as_of + ". Delphi simulates, it never places trades."));
+        }
+
+        function bookSvg(fill) {
+            const NS = "http://www.w3.org/2000/svg";
+            const levels = fill.levels;
+            const row = 22;
+            const top = 22;
+            const left = 48;
+            const width = 420;
+            const barMax = 220;
+            const height = top + levels.length * row + 6;
+            const maxSize = Math.max(...levels.map((level) => level.size));
+            const svg = document.createElementNS(NS, "svg");
+            svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+            svg.setAttribute("role", "img");
+            svg.setAttribute("aria-label", "Order book: one bar per price level, the black part is what this order takes");
+            const add = (tag, attrs, text) => {
+                const node = document.createElementNS(NS, tag);
+                for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+                if (text !== undefined) node.textContent = text;
+                svg.appendChild(node);
+            };
+            const used = levels.filter((level) => level.taken > 0);
+            add("text", { x: 0, y: 13, fill: "#57534e", "font-size": 11 }, "Ask");
+            add("text", { x: left, y: 13, fill: "#57534e", "font-size": 11 }, "Contracts offered, black: yours");
+            levels.forEach((level, i) => {
+                const y = top + i * row;
+                const full = Math.max(3, (level.size / maxSize) * barMax);
+                const taken = level.taken > 0 ? Math.max(2, (level.taken / level.size) * full) : 0;
+                const label = level.taken > 0 ? Math.round(level.taken).toLocaleString() + " of " + Math.round(level.size).toLocaleString() : Math.round(level.size).toLocaleString();
+                add("text", { x: 0, y: y + 14, fill: "#111111", "font-size": 12 }, "$" + level.price.toFixed(2));
+                add("rect", { x: left, y: y + 4, width: full, height: row - 8, rx: 2, fill: "#d6d3d1" });
+                if (taken) add("rect", { x: left, y: y + 4, width: taken, height: row - 8, rx: 2, fill: "#111111" });
+                add("text", { x: left + full + 6, y: y + 14, fill: "#111111", "font-size": 11 }, label);
+            });
+            if (fill.avg_price && used.length) {
+                let y = top + row / 2;
+                for (let i = 0; i < levels.length - 1; i++) {
+                    const a = levels[i].price;
+                    const b = levels[i + 1].price;
+                    if (fill.avg_price >= a && fill.avg_price <= b) {
+                        y = top + i * row + row / 2 + ((fill.avg_price - a) / (b - a || 1)) * row;
+                        break;
+                    }
+                }
+                add("line", { x1: left - 4, x2: left + barMax, y1: y, y2: y, stroke: "#1d4ed8", "stroke-width": 1.5, "stroke-dasharray": "4 3" });
+                add("text", { x: width, y: 13, fill: "#1d4ed8", "font-size": 11, "text-anchor": "end" }, "- - average $" + fill.avg_price.toFixed(3));
+            }
+            return svg;
+        }
+
+        function setBusy(busy) {
+            state.busy = busy;
+            ["clear-btn", "send-btn", "tonight", "past", "user-input"].forEach((id) => ($(id).disabled = busy));
+            document.querySelectorAll(".paths .ball").forEach((button) => (button.disabled = busy));
+        }
+
+        function addExchange(text) {
+            const bubble = el("div", { class: "msg user" }, text);
+            const status = el("div", { class: "status" });
+            const body = el("div");
+            const answer = el("div", { class: "msg" }, el("div", { class: "role" }, "Delphi"), status, body);
+            $("messages").append(bubble, answer);
+            window.scrollTo({ top: bubble.getBoundingClientRect().top + window.scrollY - 24, behavior: "smooth" });
+            return { status, body };
+        }
+
+        function choices(options) {
+            const row = el("div", { class: "paths" });
+            for (const option of options) {
+                const canvas = el("canvas", { "aria-hidden": "true" });
+                const button = el("button", { class: "ball", type: "button" }, canvas, el("span", {}, option.label));
+                makeOrb(canvas);
+                button.onclick = () => {
+                    if (state.busy) return;
+                    releaseOrbs(row);
+                    row.remove();
+                    option.action(option.label);
+                };
+                row.append(button);
+            }
+            $("messages").append(row);
+            row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+
+        function nextSteps() {
+            if (state.mode === "live" && state.cards.some((card) => card.crowd?.favorite)) {
+                choices([
+                    { label: "What would $100 on each favorite get me?", action: simulateFavorites },
+                    { label: "Start over", action: startOver },
+                ]);
+            } else {
+                choices([
+                    { label: "Replay another night", action: startOver },
+                    { label: "Tonight's games", action: startTonight },
+                ]);
+            }
+        }
+
+        async function showSlate() {
+            if (state.busy) return;
+            setBusy(true);
+            $("starter-options").hidden = true;
+            $("chat-form").hidden = false;
+            document.body.classList.add("games");
+            document.body.classList.remove("working");
+            resetContext();
+            const { status, body } = addExchange("Which games " + (state.mode === "live" ? "are being played tonight?" : "were played " + nightName() + "?"));
+            status.textContent = "Reading the slate from Kalshi...";
+            let found = 0;
+            try {
+                const params = new URLSearchParams({ mode: state.mode, date: state.night });
+                const data = await (await fetch("/games?" + params)).json();
+                if (data.error && !data.games.length) throw new Error(data.error);
+                showCards(data.games.map((game) => ({ ...game, mode: data.mode })));
+                found = data.games.length;
+                status.textContent = "";
+                const when = state.mode === "live" ? "tonight, at live prices" : nightName() + ", priced 3 minutes before tip-off";
+                body.append(
+                    found
+                        ? "Kalshi lists " + found + " NBA games " + when + ". They are on the right, with the question Kalshi asks and what the crowd says." + (state.mode === "live" ? " You can already simulate an order on any of them." : "")
+                        : "Kalshi lists no NBA games " + nightName() + "."
+                );
+            } catch (error) {
+                status.textContent = "Could not read the slate: " + error.message;
+                status.className = "status error";
+            }
+            setBusy(false);
+            choices(found ? [{ label: "Give me the full odds", action: fullOdds }, { label: "Start over", action: startOver }] : [{ label: "Start over", action: startOver }]);
+        }
+
+        function fullOdds() {
+            send("Give me the full odds for the games " + nightName() + ": each team's season, and how often Kalshi has been right about them.");
+        }
+
+        function send(text) {
+            if (!text || state.busy) return;
+            setBusy(true);
+            $("starter-options").hidden = true;
+            $("chat-form").hidden = false;
+            document.body.classList.add("games", "working");
+            resetContext();
+            const { status, body } = addExchange(text);
+            const started = Date.now();
+            let latest = "";
+            const tick = () => (status.textContent = "Consulting the oracle... " + Math.round((Date.now() - started) / 1000) + " s" + latest);
+            tick();
+            const clock = setInterval(tick, 1000);
+            const finish = (message, failed = false) => {
+                clearInterval(clock);
+                status.textContent = message;
+                status.className = "status" + (failed ? " error" : "");
+                setBusy(false);
+            };
+            let runId = null;
+
+            const params = new URLSearchParams({ message: text, session_id: state.sessionId || "", mode: state.mode, date: state.night });
+            const source = new EventSource("/run?" + params);
+            source.onmessage = (msg) => {
+                const event = JSON.parse(msg.data);
+                if (event.type === "start") {
+                    state.sessionId = event.session_id;
+                    runId = event.run_id;
+                } else if (event.type === "context") showContext(runId);
+                else if (event.type === "activity") {
+                    latest = ". " + event.agent + ": " + event.text;
+                    tick();
+                } else if (event.type === "done") {
+                    const cards = event.cards.map((card) => ({ ...card, mode: event.mode }));
+                    if (cards.length) showCards(cards);
+                    const report = el("div", { class: "report" });
+                    report.innerHTML = markdown(event.markdown);
+                    body.append(report);
+                    if (cards.length) body.append(gameRows(cards));
+                    for (const fill of event.orders) {
+                        const box = el("div", { class: "book" });
+                        renderBook(box, fill, fill.ticker.split("-").pop());
+                        body.append(box);
+                    }
+                    finish("Answered in " + Math.round((Date.now() - started) / 1000) + " s.");
+                    if (event.mode !== "replay" || !cards.length) {
+                        source.close();
+                        nextSteps();
+                    }
+                } else if (event.type === "reveal") {
+                    const known = event.games.filter((game) => game.winner);
+                    for (const game of known) {
+                        const slot = state.parts[game.event_ticker]?.reveal;
+                        if (!slot) continue;
+                        slot.replaceChildren(el("b", {}, game.winner + " won. "), "The crowd was " + (game.crowd_right ? "right." : "wrong."));
+                        slot.hidden = false;
+                    }
+                    const right = known.filter((game) => game.crowd_right).length;
+                    body.append(el("p", {}, el("b", {}, "The crowd was right in " + right + " of " + known.length + " games " + nightName() + "."), " Each card on the right says who won."));
+                    source.close();
+                    nextSteps();
+                } else if (event.type === "error") {
+                    finish(event.message, true);
+                    source.close();
+                    choices([{ label: "Start over", action: startOver }]);
+                }
+            };
+            source.onerror = () => {
+                if (state.busy) finish("Lost the connection to the server.", true);
+                source.close();
+            };
+        }
+
+        async function simulateFavorites(label) {
+            setBusy(true);
+            const { status, body } = addExchange(label);
+            status.textContent = "Walking tonight's order books...";
+            const picks = state.cards.filter((card) => card.crowd?.favorite && card.markets[card.crowd.favorite]?.ticker);
+            const fills = await Promise.all(picks.map((card) => simulate(card.markets[card.crowd.favorite].ticker, 100)));
+            status.textContent = "";
+            const list = el("ul", { class: "fills" });
+            picks.forEach((card, i) => {
+                const team = card.crowd.favorite;
+                const fill = fills[i];
+                renderBook(state.parts[card.event_ticker].book, fill, team);
+                list.append(
+                    el(
+                        "li",
+                        {},
+                        el("b", {}, team),
+                        fill.error
+                            ? ": " + fill.error
+                            : " at " + money(fill.avg_price) + ": $100 buys " + fill.contracts.toLocaleString() + " contracts. If " + team + " wins you get " + money(fill.payout_if_right) + " (" + money(fill.profit_if_right) + " profit). If not, you lose " + money(fill.loss_if_wrong) + "."
+                    )
+                );
+            });
+            body.append(list, el("p", { class: "note" }, "Each order book is drawn on its card on the right, where you can try another amount. Delphi simulates, it never places trades."));
+            setBusy(false);
+            choices([{ label: "Start over", action: startOver }]);
+        }
+
+        function startTonight() {
+            state.mode = "live";
+            state.night = "";
+            showSlate();
+        }
+
+        async function startOver() {
+            if (state.busy) return;
+            if (state.sessionId) await fetch("/clear?session_id=" + encodeURIComponent(state.sessionId), { method: "POST" });
+            state.sessionId = null;
+            releaseOrbs($("messages"));
+            $("messages").replaceChildren();
+            $("cards").replaceChildren();
+            state.cards = [];
+            resetContext();
+            document.body.classList.remove("games", "working");
+            $("starter-options").hidden = false;
+            $("chat-form").hidden = true;
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        async function loadNights() {
+            try {
+                const data = await (await fetch("/games?mode=replay")).json();
+                $("night").min = data.first_night;
+                $("night").max = data.last_night;
+                $("night").value = data.last_night;
+                $("night-label").textContent = nightLabel(data.last_night);
+            } catch {}
+        }
+
+        document.querySelectorAll("#starter-options canvas").forEach(makeOrb);
+        if (!stillOrbs) requestAnimationFrame(animateOrbs);
+        $("night").onchange = () => $("night").value && ($("night-label").textContent = nightLabel($("night").value));
+        $("tonight").onclick = startTonight;
+        $("past").onclick = () => {
+            state.mode = "replay";
+            state.night = $("night").value;
+            showSlate();
+        };
+        $("chat-form").onsubmit = (event) => {
+            event.preventDefault();
+            const text = $("user-input").value.trim();
+            $("user-input").value = "";
+            document.querySelectorAll(".paths").forEach((row) => {
+                releaseOrbs(row);
+                row.remove();
+            });
+            send(text);
+        };
+        $("clear-btn").onclick = startOver;
+        loadNights();
+    </script>
+</body>
+</html>
